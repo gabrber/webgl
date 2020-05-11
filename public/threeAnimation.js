@@ -1,10 +1,12 @@
 import {visibleHeightAtZDepth, visibleWidthAtZDepth, lerp} from "../utils.js"
-import {nextSlide} from "../main.js"
+import {nextSlide, prevSlide} from "../main.js"
 
 const raycaster = new THREE.Raycaster()
 const objLoader = new THREE.OBJLoader()
 let arrowBox = null
 let arrowBoxRotation = 0
+let arrowBoxPrev = null
+let arrowBoxRotationPrev = 0
 
 const scene = new THREE.Scene()
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight)
@@ -25,6 +27,18 @@ objLoader.load(
 
       animate()
     }
+)
+
+objLoader.load(
+  'models/cubePrev.obj',
+  ({children}) => {
+    const screenBorderPrev = -visibleWidthAtZDepth(-10, camera) / 2
+    const screenBottom = -visibleHeightAtZDepth(-10, camera) / 2
+
+    addCubePrev(children[0], prevSlide, screenBorderPrev + 1.5, screenBottom + 1)
+
+    animateLeft()
+  }
 )
 
 const addCube = (object, callbackFn, x, y) => {
@@ -50,6 +64,29 @@ const addCube = (object, callbackFn, x, y) => {
   scene.add(boundingBox)
 }
 
+const addCubePrev = (object, callbackFn, x, y) => {
+  const cubeMesh = object.clone()
+
+  cubeMesh.scale.setScalar(.3)
+  cubeMesh.rotation.set(THREE.Math.degToRad(90), 0, 0)
+
+  const boundingBox = new THREE.Mesh(
+      new THREE.BoxGeometry(.7, .7, .7),
+      new THREE.MeshBasicMaterial({transparent: true, opacity: 0})
+  )
+
+  boundingBox.position.x = x
+  boundingBox.position.y = y
+  boundingBox.position.z = -10
+
+  boundingBox.add(cubeMesh)
+
+  boundingBox.callbackFn = callbackFn
+
+  arrowBoxPrev = boundingBox
+  scene.add(boundingBox)
+}
+
 const animate = () => {
   arrowBoxRotation = lerp(arrowBoxRotation, 0, .07)
   arrowBox.rotation.set(THREE.Math.degToRad(arrowBoxRotation), 0, 0)
@@ -58,8 +95,20 @@ const animate = () => {
   requestAnimationFrame(animate)
 }
 
+const animateLeft = () => {
+  arrowBoxRotationPrev = lerp(arrowBoxRotationPrev, 0, .07)
+  arrowBoxPrev.rotation.set(THREE.Math.degToRad(arrowBoxRotationPrev), 0, 0)
+
+  renderer.render(scene, camera)
+  requestAnimationFrame(animateLeft)
+}
+
 export const handleThreeAnimation = () => {
   arrowBoxRotation = 360
+}
+
+export const handleThreeAnimationPrev = () => {
+  arrowBoxRotationPrev = -360
 }
 
 window.addEventListener('click', () => {
@@ -71,4 +120,7 @@ window.addEventListener('click', () => {
 
   const interesctedObjects = raycaster.intersectObjects([arrowBox])
   interesctedObjects.length && interesctedObjects[0].object.callbackFn()
+
+  const interesctedObjectsPrev = raycaster.intersectObjects([arrowBoxPrev])
+  interesctedObjectsPrev.length && interesctedObjectsPrev[0].object.callbackFn()
 })
